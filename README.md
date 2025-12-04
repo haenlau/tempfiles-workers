@@ -114,14 +114,8 @@ curl -X POST https://tmp.air1.cn/api/upload \
 ```
 将 your-upload-token 替换为你在第四步设置的实际值。
 
-完成以上步骤后，你的临时文件服务即可正式上线使用。如需更新功能，只需重新粘贴最新版 index.js 并重新部署即可。
+完成以上步骤后，临时文件服务即可正式上线使用。如需更新功能，只需重新粘贴最新版 index.js 并重新部署即可。
 
-开源许可
-
-本项目采用 MIT 许可证
-
-MIT License
 
  项目地址：[https://github.com/haenlau/tempfiles-workers](https://github.com/haenlau/tempfiles-workers)
 
- Demo地址：[https://tmp.air1.cn](https://tmp.air1.cn)
