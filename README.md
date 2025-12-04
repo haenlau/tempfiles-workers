@@ -4,7 +4,7 @@ Cloudflare 临时文件存储服务
 所有文件 12 小时后自动过期删除，单文件大小限制为 25MB。
 
 完全免费、无需服务器、开箱即用，适合快速分享截图、日志、文档等临时内容。
- 本项目仅依赖 Cloudflare 免费套餐功能，无需信用卡或高级订阅。
+ 本项目仅依赖 Cloudflare 免费套餐功能，无需高级订阅。
 
  功能特性
 Web 界面上传任意类型文件（≤25MB）
@@ -50,11 +50,12 @@ Web 界面上传任意类型文件（≤25MB）
 
 ```js
 const downloadUrl = https://<your-domain>/${fileId};
-
-将 <your-domain> 替换为您的实际访问域名：
+```
+将 your-domain 替换为您的实际访问域名：
 默认域名示例：temp-file-store.workers.dev
 自定义域名示例：tmp.example.com
-4. 点击右上角 部署
+
+4. 点击右上角部署
 
 第五步：测试服务
 访问上传页面
@@ -83,15 +84,19 @@ https://temp-file-store.workers.dev
 ------ ------
 最大文件大小 25 MB（硬编码限制）
 存储有效期 12 小时（通过 expirationTtl: 43200 实现）
-文件 ID 6 位随机字符串（基于 Math.random().toString(36)）
-路径保护 预留 /api、/upload 等路径防止冲突
-身份验证 无 — 所有上传均为公开，请勿用于敏感数据
- 此服务设计为临时、公开、无认证场景使用。如需权限控制，请自行扩展 Token 鉴权逻辑。
 
- 开源许可
+文件 ID 6 位随机字符串（基于 Math.random().toString(36)）
+
+路径保护 预留 /api、/upload 等路径防止冲突
+
+身份验证 无 — 所有上传均为公开，请勿用于敏感数据
+
+此服务设计为临时、公开、无认证场景使用。如需权限控制，请自行扩展 Token 鉴权逻辑。
+
+开源许可
 
 本项目采用 MIT 许可证
 
 MIT License
 
- 项目地址：[https://github.com/your-username/cloudflare-temp-file](https://github.com/your-username/cloudflare-temp-file)
+ 项目地址：[https://github.com/haenlau/tempfiles-workers](https://github.com/haenlau/tempfiles-workers)
