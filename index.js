@@ -62,7 +62,7 @@ function generateFileId() {
   return Math.random().toString(36).substring(2, 8); // 6字符随机ID
 }
 
-// ====== 处理文件上传 ======
+// ====== 公共上传逻辑（无鉴权） ======
 async function handleFileUpload(file, env) {
   const MAX_SIZE = 26112000; // 25 MB
   if (file.size > MAX_SIZE) {
@@ -83,7 +83,7 @@ async function handleFileUpload(file, env) {
     expirationTtl: 43200 // 12小时 = 43200秒
   });
 
-  // ⚠️ 部署时请将 <your-domain> 替换为实际域名（如 your-worker.workers.dev 或 tmp.example.com）
+  // ⚠️ 部署时请将 <your-domain> 替换为你的实际域名
   const downloadUrl = `https://<your-domain>/${fileId}`;
 
   return new Response(JSON.stringify({ downloadUrl }), {
@@ -91,6 +91,53 @@ async function handleFileUpload(file, env) {
       "Content-Type": "application/json",
       "Access-Control-Allow-Origin": "*"
     }
+  });
+}
+
+// ====== 受保护上传逻辑（需 Token） ======
+async function handleProtectedUpload(file, env, request) {
+  const authHeader = request.headers.get("Authorization");
+  const expectedToken = env.UPLOAD_TOKEN; // 从 Secrets 读取
+
+  // 如果未配置 UPLOAD_TOKEN，拒绝使用此接口
+  if (!expectedToken) {
+    return new Response(JSON.stringify({ error: "服务器未配置 UPLOAD_TOKEN" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
+  // 验证 Bearer Token
+  if (authHeader !== `Bearer ${expectedToken}`) {
+    return new Response(JSON.stringify({ error: "无效或缺失 Token" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
+  // 复用公共上传逻辑（注意：此处不返回 CORS 头，因面向程序调用）
+  const MAX_SIZE = 26112000;
+  if (file.size > MAX_SIZE) {
+    return new Response(JSON.stringify({ error: "文件不能超过 25MB" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
+  const fileId = generateFileId();
+  const arrayBuffer = await file.arrayBuffer();
+
+  await env.TEMP_STORE.put(fileId, arrayBuffer, {
+    metadata: {
+      filename: file.name || "file",
+      contentType: file.type || "application/octet-stream"
+    },
+    expirationTtl: 43200
+  });
+
+  const downloadUrl = `https://<your-domain>/${fileId}`;
+  return new Response(JSON.stringify({ downloadUrl }), {
+    headers: { "Content-Type": "application/json" }
   });
 }
 
@@ -107,7 +154,7 @@ export default {
       });
     }
 
-    // 2. CORS 预检
+    // 2. CORS 预检（仅对公开接口有意义）
     if (request.method === "OPTIONS") {
       return new Response(null, {
         headers: {
@@ -118,7 +165,7 @@ export default {
       });
     }
 
-    // 3. 上传接口
+    // 3. 公开上传接口（用于网页）
     if (pathname === "/api/upload-public" && request.method === "POST") {
       try {
         const formData = await request.formData();
@@ -131,7 +178,7 @@ export default {
         }
         return await handleFileUpload(file, env);
       } catch (e) {
-        console.error("上传处理出错:", e);
+        console.error("公开上传出错:", e);
         return new Response(JSON.stringify({ error: "服务器内部错误" }), {
           status: 500,
           headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
@@ -139,12 +186,34 @@ export default {
       }
     }
 
-    // 4. 文件下载：通过 /{id} 访问（如 /abc123）
+    // 4. 受保护上传接口（需 Token，用于脚本/API）
+    if (pathname === "/api/upload" && request.method === "POST") {
+      try {
+        const formData = await request.formData();
+        const file = formData.get("file");
+        if (!file || !(file instanceof File)) {
+          return new Response(JSON.stringify({ error: "未提供有效文件" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" }
+          });
+        }
+        return await handleProtectedUpload(file, env, request);
+      } catch (e) {
+        console.error("受保护上传出错:", e);
+        return new Response(JSON.stringify({ error: "服务器内部错误" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+    }
+
+    // 5. 文件下载：通过 /{id} 访问（要求至少6字符）
     const segments = pathname.split('/').filter(Boolean);
     if (segments.length === 1 && segments[0].length >= 6) {
       const id = segments[0];
-      // 防止与 API 路径冲突
-      const reservedPaths = new Set(['api', 'upload', 'f', 'about', 's']);
+      const reservedPaths = new Set([
+        'api', 'upload', 'f', 'favicon.ico', 'robots.txt', 'about', 's'
+      ]);
       if (!reservedPaths.has(id)) {
         const entry = await env.TEMP_STORE.getWithMetadata(id, "arrayBuffer");
         if (entry.value) {
@@ -160,7 +229,7 @@ export default {
       }
     }
 
-    // 5. 未匹配路由 → 404
+    // 6. 未匹配路由 → 404
     return new Response("Not Found", { status: 404 });
   }
 };

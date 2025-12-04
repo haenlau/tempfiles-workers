@@ -1,97 +1,120 @@
-Cloudflare 临时文件存储服务
+#  Cloudflare 临时文件存储服务
 
-基于 Cloudflare Workers + KV 的轻量级临时文件上传与分享工具。
-所有文件 12 小时后自动过期删除，单文件大小限制为 25MB。
+基于 **Cloudflare Workers + KV** 的轻量级临时文件上传与分享工具。
 
-完全免费、无需服务器、开箱即用，适合快速分享截图、日志、文档等临时内容。
- 本项目仅依赖 Cloudflare 免费套餐功能，无需高级订阅。
+> 所有文件 **12 小时后自动过期删除**，单文件大小限制为 **25MB**。  
+> 完全免费、无需服务器、开箱即用，适合快速分享截图、日志、文档等临时内容。  
+> 本项目仅依赖 **Cloudflare 免费套餐功能**，无需高级订阅。
 
- 功能特性
-Web 界面上传任意类型文件（≤25MB）
-自动生成短链接用于分享
-文件自动设置 12 小时 TTL（过期即删）
-下载时保留原始文件名并强制附件下载
-支持 CORS，可被前端直接调用
-路径白名单保护，避免与未来 API 冲突
-无用户系统、无数据库、无外部依赖
+---
 
-部署指南
-第一步：创建 Worker
+##  功能特性
 
-1. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com)
-2. 左侧菜单点击 Workers 和 Pages
-3. 点击右上角 + 添加 → 选择 Worker
-4. 输入服务名称（如 temp-file-store）
-5. 选择 从 Hello World 开始，点击 部署
-记下分配的默认地址：https://temp-file-store.workers.dev
+-  **Web 界面上传**任意类型文件（≤25MB）  
+-  **自动生成短链接**，一键分享  
+-  文件自动设置 **12 小时 TTL**（过期即自动删除）  
+-  下载时 **保留原始文件名**，并强制以附件形式下载  
+-  **支持 CORS**，可被前端应用直接调用  
+-  **路径白名单保护**，避免与未来 API 路由冲突  
+-  **无用户系统、无数据库、无外部依赖** —— 极简架构，零运维
 
-第二步：创建 KV 命名空间
+---
 
-1. 在左侧菜单中，展开 存储和数据库
-2. 点击 Workers KV
-3. 点击 创建命名空间
-4. 输入名称：TEMP_STORE
-5. 点击 创建
+##  使用场景
 
-第三步：绑定 KV 到 Worker
+- 快速分享屏幕截图或错误日志  
+- 临时传输小文档、配置文件或代码片段  
+- 前端调试时上传测试文件  
+- 无需注册的匿名文件中转站
 
-1. 返回您的 Worker 详情页
-2. 在 绑定 区域点击 + 绑定
-3. 类型选择 KV 命名空间
-4. 选择刚创建的 TEMP_STORE
-5. 设置变量名为 TEMP_STORE
-6. 点击 添加绑定
+---
 
-第四步：部署代码
+## 第一步：创建 Worker
 
-1. 在 Worker 页面点击 编辑代码
-2. 清空默认内容，粘贴本仓库中的 [index.js](./index.js)
-3. 关键修改：找到以下代码行：
+1. 登录 [Cloudflare 控制台](https://dash.cloudflare.com)。
+2. 在左侧导航栏点击 **计算和 AI > Workers 和 Pages**。
+3. 点击右上角 **“+ 添加”**，选择 **“从 Hello World! 开始”**。
+4. 输入 Worker 名称（例如 `temp-files`），点击 **“部署”**。
 
-```js
-const downloadUrl = https://<your-domain>/${fileId};
+部署完成后，你将进入该 Worker 的管理页面。
+
+---
+
+## 第二步：创建并绑定 KV 命名空间
+
+1. 在左侧导航栏点击 **存储和数据库 > Workers KV**。
+2. 点击 **“+ 创建命名空间”**，输入名称 `TEMP_STORE`，点击 **“创建”**。
+3. 返回到刚创建的命名空间，点击右侧 **“绑定”**。
+4. 选择你刚刚创建的 Worker，将变量名设为 `TEMP_STORE`，点击 **“绑定”**。
+
+> 此 KV 用于存储上传的文件内容，必须完成绑定才能正常使用。
+
+---
+
+## 第三步：配置 Secret（可选）
+
+如果你希望启用受保护的 API 上传（需 Token 鉴权），请设置一个密钥：
+
+1. 在 Worker 页面，点击顶部标签 **“变量和机密”**。
+2. 在 **“密钥”** 区域点击 **“+ 添加”**。
+3. 设置：
+   - **名称**：`UPLOAD_TOKEN`
+   - **值**：任意强密码（如 `x7GkL9qP2mNvR5`）
+4. 点击 **“保存”**。
+
+> 如果不设置此密钥，`/api/upload` 接口将返回错误，但网页上传仍可使用。
+
+---
+
+## 第四步：导入代码
+
+1. 打开你的 GitHub 仓库，找到 `index.js` 文件。
+2. 复制全部内容。
+3. 回到 Cloudflare Worker 页面，点击右上角 **“编辑代码”**。
+4. 清空编辑器中的默认代码，粘贴你从仓库复制的 `index.js` 内容。
+5. 点击 **“保存并部署”**。
+
+> 代码中已包含逻辑判断，无需手动修改域名。只要通过正确域名访问（见下一步），生成的下载链接即为有效地址。
+
+---
+
+## 第五步：绑定自定义域名（可选）
+
+如果你拥有自己的域名（如 `tmp.air1.cn`），可以绑定以获得更简洁的访问地址：
+
+1. 在 Worker 页面，点击顶部标签 **“域和路由”**。
+2. 点击 **“+ 添加”**，选择 **“自定义域”**。
+3. 输入你的子域名（例如 `tmp.air1.cn`）。
+4. 按照提示在你的 DNS 提供商处添加指定的 CNAME 或 A 记录。
+
+> 若跳过此步，可直接使用 Cloudflare 分配的 `.workers.dev` 地址访问服务。
+
+---
+
+## 第六步：测试服务
+
+### 网页上传测试
+
+打开浏览器，访问你的 Worker 地址，例如：
+
+https://temp-files.yourname.workers.dev
+
+或你的自定义域名：
+
+https://yourname.domain
+
+选择文件上传，成功后会显示下载链接。
+
+API 上传测试（需 Token）
+使用 curl 测试受保护接口：
+```bash
+curl -X POST https://tmp.air1.cn/api/upload \
+-H "Authorization: Bearer your-upload-token" \
+-F "file=@example.txt"
 ```
-将 your-domain 替换为您的实际访问域名：
-默认域名示例：temp-file-store.workers.dev
-自定义域名示例：tmp.example.com
+将 your-upload-token 替换为你在第四步设置的实际值。
 
-4. 点击右上角部署
-
-第五步：测试服务
-访问上传页面
-
-https://temp-file-store.workers.dev
-上传文件
-1. 选择一个 ≤25MB 的文件
-2. 点击 上传
-3. 复制生成的分享链接
-下载文件
-访问生成的链接，浏览器将自动下载原始文件。
-
- 自定义域名（可选）
-
-1. 在 DNS 中添加 CNAME 记录：
-名称：tmp（或其他子域）
-目标：temp-file-store.workers.dev
-2. 确保该记录由 Cloudflare 代理（橙色云图标）
-3. 在 Worker 的 绑定 页面，点击 + 绑定 → 自定义域名
-4. 输入 tmp.yourdomain.com 并完成验证
-5. 更新 index.js 中的 <your-domain> 为 tmp.yourdomain.com
-
- 安全与限制
-
-项目 说明
------- ------
-最大文件大小 25 MB（硬编码限制）
-存储有效期 12 小时（通过 expirationTtl: 43200 实现）
-
-文件 ID 6 位随机字符串（基于 Math.random().toString(36)）
-
-路径保护 预留 /api、/upload 等路径防止冲突
-
-身份验证 无 — 所有上传均为公开，请勿用于敏感数据
-
-此服务设计为临时、公开、无认证场景使用。如需权限控制，请自行扩展 Token 鉴权逻辑。
+完成以上步骤后，你的临时文件服务即可正式上线使用。如需更新功能，只需重新粘贴最新版 index.js 并重新部署即可。
 
 开源许可
 
@@ -100,3 +123,5 @@ https://temp-file-store.workers.dev
 MIT License
 
  项目地址：[https://github.com/haenlau/tempfiles-workers](https://github.com/haenlau/tempfiles-workers)
+
+ Demo地址：[https://tmp.air1.cn](https://tmp.air1.cn)
